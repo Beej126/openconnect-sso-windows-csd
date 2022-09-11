@@ -94,6 +94,43 @@ lastly here's a sample command line (execute from .venv/scripts as your active d
 this will output our final openconnect-sso.exe to .venv/scripts/dist folder!
 
 ---
+sample hostscan-data file:
+```
+endpoint.os.version="Windows 10";
+endpoint.os.architecture="x64";
+endpoint.os.processor_level="unknown";
+endpoint.device.protection="none";
+endpoint.device.protection_version="4.8.01064";
+endpoint.device.protection_extension="4.3.890.0";
+endpoint.device.hostname="winpc";
+endpoint.device.id="To Be Filled By O.E.M.";
+endpoint.os.hotfix["KB4497165"]="true";
+endpoint.os.hotfix["KB4498523"]="true";
+endpoint.os.hotfix["KB4503308"]="true";
+endpoint.os.hotfix["KB4508433"]="true";
+endpoint.os.hotfix["KB4509096"]="true";
+endpoint.os.hotfix["KB4515383"]="true";
+endpoint.os.hotfix["KB4515871"]="true";
+endpoint.os.hotfix["KB4516115"]="true";
+endpoint.os.hotfix["KB4520390"]="true";
+endpoint.os.hotfix["KB4521863"]="true";
+endpoint.os.hotfix["KB4523786"]="true";
+endpoint.os.hotfix["KB4524569"]="true";
+endpoint.pfw["283"]={};
+endpoint.pfw["283"].exists="true";
+endpoint.pfw["283"].description="Windows Firewall";
+endpoint.pfw["283"].version="10.0.18362.1";
+endpoint.pfw["283"].enabled="ok";
+endpoint.am["362"]={};
+endpoint.am["362"].exists="true";
+endpoint.am["362"].description="Windows Defender";
+endpoint.am["362"].version="4.18.1902.5";
+endpoint.am["362"].activescan="ok";
+endpoint.am["362"].lastupdate="12179";
+endpoint.am["362"].timestamp="1574131324";
+```
+
+---
 
 ## Original Docs
 
