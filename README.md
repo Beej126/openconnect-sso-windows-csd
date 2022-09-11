@@ -6,7 +6,7 @@ Wrapper script for OpenConnect supporting Azure AD (SAMLv2) authentication to Ci
 
 ## Background
 
-the VPN scenario i'm personally shooting for is cisco anyconnect, with Azure AD MFA.
+the VPN scenario i'm personally shooting for is cisco anyconnect, with Azure AD MFA running on Windows 11 (currently v 21H2, build: 22000.856).
 
 i created this fork to get the build process working on Windows along with incorporating @impynutz' "CSD hostscan" response logic.
 
