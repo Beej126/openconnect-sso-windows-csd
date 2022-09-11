@@ -1,10 +1,101 @@
 # openconnect-sso
 
-Wrapper script for OpenConnect supporting Azure AD (SAMLv2) authentication
-to Cisco SSL-VPNs
+Wrapper script for OpenConnect supporting Azure AD (SAMLv2) authentication to Cisco SSL-VPNs
 
-[![Tests Status
-](https://github.com/vlaci/openconnect-sso/workflows/Tests/badge.svg?branch=master&event=push)](https://github.com/vlaci/openconnect-sso/actions?query=workflow%3ATests+branch%3Amaster+event%3Apush)
+---
+
+## Background
+
+the VPN scenario i'm personally shooting for is cisco anyconnect, with Azure AD MFA.
+
+i created this fork to get the build process working on Windows along with incorporating @impynutz' "CSD hostscan" response logic.
+
+actually i don't think the build process really needs to run on Windows... theoretically we should be able to execute the final python script output from a linux build on Windows...
+
+yet  the last step of creating a self contained .exe DEFINITELY does require running pyinstaller on Windows... if you run pyinstaller on linux it is designed to generate a linux format binary.
+
+as quick background, normally the native cisco anyconnect client facilitates executing a scan of your local computer requested by your vpn server.
+  this step is intended to confirm things like a well patched OS and antivirus installed.
+  the CSD logic we're doing here primarily boils down to submitting your customized "hostscan-data" file to satisfy the cisco server request during auth handshake.
+
+
+## Prerequisite installs:
+- (optional) vscode: winget install vscode
+- (optional) pwsh: winget install pwsh
+- git for windows (-i = interactive so we can choose personally preferred git options like which tty console to use): winget install git.git -i
+- chocolatey (must be elevated! i'm using choco to obtain make.exe since github windows runner navtively supports `choco install`): Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+- choco install make
+- python v3.10: https://python.org... i installed for "all users" path, checked "compile standard library" (hoping this means lxml works) and enabled the "py" convenience launcher
+- poetry (used in Makefile): (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
+  - add poetry.exe to path: %AppData%\Roaming\Python\Scripts
+- pre-commit (used in Makefile... weird this installs to %APPDATA%\Roaming\Python\Python310\Scripts vs the Script folder poetry installed to): pip install pre-commit
+
+now we can successfully run make targets!
+  ```
+  > make dev
+  ```
+
+the poetry build process within the Makefile will create a python "virtual environment" in ".venv" folder...
+so the final `make dev` build output winds up in .venv/Scripts...
+there will be an openconnect-sso.cmd created which launches the openconnect-sso python file... a sample run command line would be as simple as:
+  ```
+  > openconnect-sso.cmd -s {hostname}
+  ```
+
+we now have a working pipeline to run and tweak openconnect-sso on Windows, sweet!
+
+as a reminder, openconnect-sso should popup a webview GUI for you to MFA with your provider (Azure AD in my case)...
+and after gathering the auth output it will eventually launch a command line like this:
+  ```
+  > sudo openconnect --cookie blah --servercert blah
+  ```
+
+### Windows sudo
+fyi, here's a very nice sudo for windows: https://github.com/mattn/sudo ... it's written in go and takes some effort to capture the stdin/stdout of the hidden elevated process and pipe that back to your initial console so it seems a lot more equivalent to linux sudo
+
+frankly, i'm thinking it's less overhead to simply start the entire openconnect-sso process elevated in the first place and eliminate this sudo dependency on windows so i'll probably work that in as a subsequent change
+
+---
+## Creating Self-Contained openconnect-sso.exe for Windows:
+
+"pyinstaller" bundles all the necessary files into a single exe file...
+when you see its runtime output you realize it's doing A LOT of work!, including all the Qt5 dlls for webview UI, etc
+  which makes some sense why the final .exe winds up over 100megs!
+  and why it takes a few moments upon initial launch to unpack everything to %temp% before it starts executing
+
+to get this piece running we just have a couple more pre-reqs:
+- make sure you're working in the activated venv: .venv/scripts/activate
+  - there is an activate.bat as well as activate.ps1 depending on which shell you're running
+- cd .venv/scripts
+- pip install pyinstaller
+  - make sure that you've loaded pyinstaller into the venv (not global) by confirming pyinstall.exe is now present in the .venv/scripts folder
+- for the logic to be happy we need a "user.js" file present in the right location at runtime...
+  - this might be intended for us to inject our own javascript into the MFA webview! this could be interesting for automatically inputting login info... the one @impynutz provided so far is blank except for "// ==UserScript==" which suggests greasemonkey if you're familiar
+  - copy it from the $repo/openconnect_sso/browser folder to the .venv/scripts folder
+- and one last tweak for Windows due to this: https://github.com/pyinstaller/pyinstaller/wiki/Recipe-Multiprocessing
+  - edit openconnect-sso and make it look like this:
+    ```python
+    import sys
+    import multiprocessing
+    from openconnect_sso.cli import main
+
+    if __name__ == '__main__':
+        multiprocessing.freeze_support()
+        sys.exit(main())
+    ```
+  - it looks like this correponds to the $repo/openconnect_sso/cli.py file so presumably that's the original location we need to modify so that it comes back through the make process, i'll have to confirm that.
+
+lastly here's a sample command line (execute from .venv/scripts as your active directory):
+  ```
+  > pyinstaller.exe --onefile --clean --add-data "user.js;openconnect_sso/browser" openconnect-sso
+  ```
+(fyi, the "--add-data" syntax is "source;dest")
+
+this will output our final openconnect-sso.exe to .venv/scripts/dist folder!
+
+---
+
+## Original Docs
 
 ## Installation
 
