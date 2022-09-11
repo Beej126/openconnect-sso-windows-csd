@@ -1,4 +1,4 @@
-# openconnect-sso
+# (forked) openconnect-sso
 
 Wrapper script for OpenConnect supporting Azure AD (SAMLv2) authentication to Cisco SSL-VPNs
 
@@ -6,36 +6,43 @@ Wrapper script for OpenConnect supporting Azure AD (SAMLv2) authentication to Ci
 
 ## Background
 
-the VPN scenario i'm personally shooting for is cisco anyconnect, with Azure AD MFA.
+the VPN scenario i'm personally shooting for is:
+- cisco anyconnect protocol
+- Azure AD MFA
+- Windows 11 (currently v 21H2, build: 22000.856)
 
-i created this fork to get the build process working on Windows along with incorporating @impynutz' "CSD hostscan" response logic.
+i created this fork to get the build process working on Windows along with incorporating @impynutz' "CSD hostscan" response logic ([see thread](https://github.com/vlaci/openconnect-sso/issues/35)).
 
-actually i don't think the build process really needs to run on Windows... theoretically we should be able to execute the final python script output from a linux build on Windows...
+as quick background on the need here: VPN administrators can configure the anyconnect auth flow to direct the native cisco vpn client to execute a scan of your local computer and thereby base successful connection on approved results of this scan. this step is intended to confirm things like a well patched OS and presence of approved antivirus software. the CSD logic we're doing here primarily boils down to submitting a customized "hostscan-data" file to satisfy this scan request.
 
-yet  the last step of creating a self contained .exe DEFINITELY does require running pyinstaller on Windows... if you run pyinstaller on linux it is designed to generate a linux format binary.
+to be precise, i don't think the build process must necessarily run on Windows... i believe we should be able to execute the final python script output from a linux build on Windows... yet the last step of creating a self contained Windows .exe does require running pyinstaller on Windows within the folder of the build output... if you run pyinstaller on linux it is designed to generate a linux format binary... so working back from there, it seems most streamlined to have the build itself running on windows as well.
 
-as quick background, normally the native cisco anyconnect client facilitates executing a scan of your local computer requested by your vpn server.
-  this step is intended to confirm things like a well patched OS and antivirus installed.
-  the CSD logic we're doing here primarily boils down to submitting your customized "hostscan-data" file to satisfy the cisco server request during auth handshake.
+## Prerequisite installs for building on Windows:
+(there's many ways to get python and this toolchain working, this is just what worked for me and seemed canonically minimal)
+(mild assumption that you're using pwsh for your command line)
 
+- [chocolatey](https://docs.chocolatey.org/en-us/choco/setup) (must be elevated!): `Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))`
+  - i'm using choco to obtain make.exe since it'd be nice to eventually do this all in a github action and the windows runners appear to natively support `choco install`
+- [`choco install make`](https://community.chocolatey.org/packages/make)
+- python v3.10 via https://python.org exe installer
+  - there's probably a winget entry that would work but there's so many of them i couldn't tell which one would be best
+  - for the record, the one significant python distro i did have trouble with was v3.10 from the Windows Store... i ran into lxml package missing .h files during the makefile run.
+  - i chose options: "all users" path, "compile standard library" (hoping this means lxml works) and enabled the "py" convenience launcher
+- [poetry](https://python-poetry.org/docs/#installation) (used in Makefile): `(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -`
+  - and then add poetry.exe to your path: `%AppData%\Roaming\Python\Scripts`
+- [`pip install pre-commit`](https://pre-commit.com/)
+  - used in Makefile... weird this installs to %APPDATA%\Roaming\Python\Python310\Scripts vs the Script folder poetry installed to
 
-## Prerequisite installs:
-- (optional) vscode: winget install vscode
-- (optional) pwsh: winget install pwsh
-- git for windows (-i = interactive so we can choose personally preferred git options like which tty console to use): winget install git.git -i
-- chocolatey (must be elevated! i'm using choco to obtain make.exe since github windows runner navtively supports `choco install`): Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-- choco install make
-- python v3.10: https://python.org... i installed for "all users" path, checked "compile standard library" (hoping this means lxml works) and enabled the "py" convenience launcher
-- poetry (used in Makefile): (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
-  - add poetry.exe to path: %AppData%\Roaming\Python\Scripts
-- pre-commit (used in Makefile... weird this installs to %APPDATA%\Roaming\Python\Python310\Scripts vs the Script folder poetry installed to): pip install pre-commit
+* [`winget install git.git -i`](https://git-scm.com/download/win)
+  * -i = interactive so we can choose personally preferred git options like which tty console to use
+* lastly of course, clone this repo to a local folder and cd into it
 
 now we can successfully run make targets!
   ```
   > make dev
   ```
 
-the poetry build process within the Makefile will create a python "virtual environment" in ".venv" folder...
+the poetry build process within the Makefile will create a python "[virtual environment](https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments)" in ".venv" folder...
 so the final `make dev` build output winds up in .venv/Scripts...
 there will be an openconnect-sso.cmd created which launches the openconnect-sso python file... a sample run command line would be as simple as:
   ```
@@ -45,18 +52,16 @@ there will be an openconnect-sso.cmd created which launches the openconnect-sso 
 we now have a working pipeline to run and tweak openconnect-sso on Windows, sweet!
 
 as a reminder, openconnect-sso should popup a webview GUI for you to MFA with your provider (Azure AD in my case)...
-and after gathering the auth output it will eventually launch a command line like this:
+and after slurping up the pertinent auth handshake output it will eventually launch a command line like this:
   ```
-  > sudo openconnect --cookie blah --servercert blah
+  > openconnect.exe --cookie-on-stdin --servercert blah
   ```
 
-### Windows sudo
-fyi, here's a very nice sudo for windows: https://github.com/mattn/sudo ... it's written in go and takes some effort to capture the stdin/stdout of the hidden elevated process and pipe that back to your initial console so it seems a lot more equivalent to linux sudo
-
-frankly, i'm thinking it's less overhead to simply start the entire openconnect-sso process elevated in the first place and eliminate this sudo dependency on windows so i'll probably work that in as a subsequent change
+### Windows sudo 
+i've removed sudo from the latest release... it's less overhead to simply start the entire openconnect-sso process elevated in the first place and eliminate this dependency... also even more importantly, it allows CTRL-C (SIGINT) to be caught by openconnect.exe and thereby clean up gracefully... for example running the "[vpnc-script-win.js](https://github.com/Beej126/openconnect-sso-windows-csd/blob/main/misc/vpnc-script-win.js)" script which i've customized to remove the default gateway entry that was created in your route table for the vpn
 
 ---
-## Creating Self-Contained openconnect-sso.exe for Windows:
+## Creating Self-Contained Windows .exe:
 
 "pyinstaller" bundles all the necessary files into a single exe file...
 when you see its runtime output you realize it's doing A LOT of work!, including all the Qt5 dlls for webview UI, etc
@@ -64,16 +69,14 @@ when you see its runtime output you realize it's doing A LOT of work!, including
   and why it takes a few moments upon initial launch to unpack everything to %temp% before it starts executing
 
 to get this piece running we just have a couple more pre-reqs:
-- make sure you're working in the activated venv: .venv/scripts/activate
-  - there is an activate.bat as well as activate.ps1 depending on which shell you're running
-- cd .venv/scripts
-- pip install pyinstaller
-  - make sure that you've loaded pyinstaller into the venv (not global) by confirming pyinstall.exe is now present in the .venv/scripts folder
-- for the logic to be happy we need a "user.js" file present in the right location at runtime...
-  - this might be intended for us to inject our own javascript into the MFA webview! this could be interesting for automatically inputting login info... the one @impynutz provided so far is blank except for "// ==UserScript==" which suggests greasemonkey if you're familiar
-  - copy it from the $repo/openconnect_sso/browser folder to the .venv/scripts folder
+- `cd .venv\Scripts`
+- `.\activate.ps1`
+- `pip install pyinstaller`
+  - confirm pyinstall.exe is now present in the .venv/scripts folder, otherwise the activate didn't work, try again
+- `cp ..\..\openconnect_sso\browser\user.js .`
+    - for the logic to be happy we need a "user.js" file present in the right location at runtime... this might be intended for us to inject our own javascript into the MFA webview to automatically populate credentials, need to explore... the file @impynutz provided is blank so far except for "// ==UserScript==" which suggests [Greasemonkey](https://en.wikipedia.org/wiki/Greasemonkey) if you're familiar
 - and one last tweak for Windows due to this: https://github.com/pyinstaller/pyinstaller/wiki/Recipe-Multiprocessing
-  - edit openconnect-sso and make it look like this:
+  - edit `.venv/scripts/openconnect-sso` and make it look like this:
     ```python
     import sys
     import multiprocessing
@@ -83,11 +86,12 @@ to get this piece running we just have a couple more pre-reqs:
         multiprocessing.freeze_support()
         sys.exit(main())
     ```
-  - it looks like this correponds to the $repo/openconnect_sso/cli.py file so presumably that's the original location we need to modify so that it comes back through the make process, i'll have to confirm that.
+  - it looks like this code correponds to the $repo/openconnect_sso/cli.py file but applying these edits there did NOT propogate as expected to the .venv build output...any help here is appreciated.
 
-lastly here's a sample command line (execute from .venv/scripts as your active directory):
+to run pyinstaller:
   ```
-  > pyinstaller.exe --onefile --clean --add-data "user.js;openconnect_sso/browser" openconnect-sso
+  > cd .venv/Scripts
+  > .\pyinstaller.exe --onefile --clean --add-data "user.js;openconnect_sso/browser" openconnect-sso
   ```
 (fyi, the "--add-data" syntax is "source;dest")
 
