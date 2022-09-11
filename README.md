@@ -22,7 +22,8 @@ as quick background, normally the native cisco anyconnect client facilitates exe
   the CSD logic we're doing here primarily boils down to submitting your customized "hostscan-data" file to satisfy the cisco server request during auth handshake.
 
 
-## Prerequisite installs:
+## Prerequisite installs for building on Windows:
+(there's many ways to get python and this toolchain working, this is just what worked for me and seemed canonically minimal)
 - (optional) vscode: winget install vscode
 - (optional) pwsh: winget install pwsh
 - git for windows (-i = interactive so we can choose personally preferred git options like which tty console to use): winget install git.git -i
