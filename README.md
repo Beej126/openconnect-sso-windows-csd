@@ -11,7 +11,7 @@ the VPN scenario i'm personally shooting for is:
 - Azure AD MFA
 - Windows 11 (currently v 21H2, build: 22000.856)
 
-i created this fork to get the build process working on Windows along with incorporating @impynutz' "CSD hostscan" response logic.
+i created this fork to get the build process working on Windows along with incorporating @impynutz' "CSD hostscan" response logic ([see thread](https://github.com/vlaci/openconnect-sso/issues/35)).
 
 actually i don't think the build process really needs to run on Windows... theoretically we should be able to execute the final python script output from a linux build on Windows...
 
