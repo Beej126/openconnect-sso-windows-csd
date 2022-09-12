@@ -172,7 +172,7 @@ def authenticate_to(host, proxy, credentials, display_mode):
 
 def run_openconnect(auth_info, host, proxy, args):
     command_line = [
-        "sudo",
+        # "sudo", # removing sudo to simplify Windows execution context and better CTRL-C handling (i want the CTRL-C to pass through to openconnect.exe so it runs my "vpnc-script-win.js" script mods that cleanup the default gateway after VPN is closed)
         "openconnect",
         "--cookie-on-stdin",
         "--servercert",
