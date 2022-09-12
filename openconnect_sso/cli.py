@@ -5,6 +5,7 @@ import enum
 import logging
 import os
 import sys
+import multiprocessing
 
 import openconnect_sso
 from openconnect_sso import app, config, __version__
@@ -170,4 +171,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     sys.exit(main())
